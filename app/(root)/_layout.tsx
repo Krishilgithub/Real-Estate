@@ -28,6 +28,18 @@ export default function RootLayout() {
         }}
       />
       <Stack.Screen
+        name="payment-method/index"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="document-form/index"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="documents/index"
         options={{
           headerShown: false,

@@ -85,7 +85,7 @@ const SettingsItem = ({
 };
 
 const Profile = () => {
-  const { user, refetch, userType } = useGlobalContext();
+  const { user, userType } = useGlobalContext();
   const { unreadCount } = useNotifications();
   const [notifications, setNotifications] = React.useState(true);
   const [language, setLanguage] = useState("English");
@@ -113,7 +113,6 @@ const Profile = () => {
     const result = await logout();
     if (result) {
       Alert.alert("Success", "Logged out successfully");
-      refetch();
     } else {
       Alert.alert("Error", "Failed to logout");
     }
@@ -180,10 +179,13 @@ const Profile = () => {
         <View className="flex flex-row justify-center mt-5">
           <View className="flex flex-col items-center relative mt-5">
             <Image
-              source={{ uri: user?.avatar }}
+              source={{ uri: user?.profileImage }}
               className="size-44 relative rounded-full"
             />
-            <TouchableOpacity className="absolute bottom-[4rem] right-2">
+            <TouchableOpacity
+              onPress={() => router.push("/(root)/edit-profile")}
+              className="absolute bottom-[4rem] right-2"
+            >
               <Image source={icons.edit} className="size-7" />
             </TouchableOpacity>
 
@@ -224,8 +226,6 @@ const Profile = () => {
               title="Edit Profile"
               href="/(root)/edit-profile"
             />
-            <SettingsItem icon={icons.phone} title="Phone Number" />
-            <SettingsItem icon={icons.location} title="Address" />
             <TouchableOpacity
               onPress={() => router.push("/sign-up?switchRole=true")}
               className="flex flex-row items-center justify-between py-3"
@@ -237,7 +237,6 @@ const Profile = () => {
                 </Text>
               </View>
               <View className="flex flex-row items-center gap-2">
-                
                 <Image source={icons.rightArrow} className="size-5" />
               </View>
             </TouchableOpacity>

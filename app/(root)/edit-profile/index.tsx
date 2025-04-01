@@ -8,11 +8,13 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 
 import { useGlobalContext } from "@/lib/global-provider";
+import { updateProfile, uploadProfileImage } from "@/lib/appwrite";
 import icons from "@/constants/icons";
 
 const EditProfile = () => {
@@ -21,38 +23,71 @@ const EditProfile = () => {
   const [email, setEmail] = useState(user?.email || "");
   const [phone, setPhone] = useState(user?.phone || "");
   const [address, setAddress] = useState(user?.address || "");
-  const [avatar, setAvatar] = useState(user?.avatar || null);
+  const [profileImage, setProfileImage] = useState(user?.profileImage || null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
 
-    if (!result.canceled) {
-      setAvatar(result.assets[0].uri);
+      if (!result.canceled) {
+        setProfileImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error("Error picking image:", error);
+      Alert.alert("Error", "Failed to pick image. Please try again.");
     }
   };
 
   const handleSave = async () => {
     try {
-      // Here you would typically make an API call to update the user profile
-      // For now, we'll just update the local state
+      setIsUpdating(true);
+
+      // Upload new image if selected
+      let newProfileImageUrl = user?.profileImage;
+      if (profileImage && profileImage !== user?.profileImage) {
+        newProfileImageUrl = await uploadProfileImage(profileImage);
+        if (!newProfileImageUrl) {
+          throw new Error("Failed to upload profile image");
+        }
+      }
+
+      // Update profile information
+      const result = await updateProfile({
+        name,
+        phone,
+        address,
+      });
+
+      if (!result) {
+        throw new Error("Failed to update profile");
+      }
+
+      // Update local state
       setUser({
         ...user,
         name,
-        email,
         phone,
         address,
-        avatar,
+        profileImage: newProfileImageUrl,
       });
 
-      Alert.alert("Success", "Profile updated successfully");
-      router.back();
+      Alert.alert("Success", "Profile updated successfully", [
+        {
+          text: "OK",
+          onPress: () => router.back(),
+        },
+      ]);
     } catch (error) {
-      Alert.alert("Error", "Failed to update profile");
+      console.error("Update profile error:", error);
+      Alert.alert("Error", "Failed to update profile. Please try again.");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -68,8 +103,18 @@ const EditProfile = () => {
             <Image source={icons.backArrow} className="size-6" />
           </TouchableOpacity>
           <Text className="text-xl font-rubik-bold">Edit Profile</Text>
-          <TouchableOpacity onPress={handleSave}>
-            <Text className="text-primary text-lg font-rubik-medium">Save</Text>
+          <TouchableOpacity
+            onPress={handleSave}
+            disabled={isUpdating}
+            className={`${isUpdating ? "opacity-50" : ""}`}
+          >
+            {isUpdating ? (
+              <ActivityIndicator color="#007AFF" />
+            ) : (
+              <Text className="text-primary text-lg font-rubik-medium">
+                Save
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -77,7 +122,7 @@ const EditProfile = () => {
         <View className="flex flex-col items-center mt-8">
           <View className="relative">
             <Image
-              source={{ uri: avatar || user?.avatar }}
+              source={{ uri: profileImage || user?.profileImage }}
               className="size-32 rounded-full"
             />
             <TouchableOpacity
@@ -114,7 +159,8 @@ const EditProfile = () => {
               placeholder="Enter your email"
               keyboardType="email-address"
               autoCapitalize="none"
-              className="bg-gray-50 p-4 rounded-xl text-lg font-rubik-medium"
+              editable={false}
+              className="bg-gray-50 p-4 rounded-xl text-lg font-rubik-medium opacity-50"
             />
           </View>
 

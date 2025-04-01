@@ -24,6 +24,7 @@ export const config = {
     process.env.EXPO_PUBLIC_APPWRITE_PROPERTIES_COLLECTION_ID,
   bookingsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_BOOKINGS_COLLECTION_ID,
   bucketId: process.env.EXPO_PUBLIC_APPWRITE_BUCKET_ID,
+  usersCollectionId: process.env.EXPO_PUBLIC_APPWRITE_USERS_COLLECTION_ID,
 };
 
 export const client = new Client();
@@ -299,6 +300,70 @@ export async function createPurchase({
         );
       }
     }
+    return null;
+  }
+}
+
+export async function updatePassword(newPassword: string) {
+  try {
+    await account.updatePassword(newPassword);
+    return true;
+  } catch (error) {
+    console.error("Update password error:", error);
+    return false;
+  }
+}
+
+export async function updateProfile({
+  name,
+  phone,
+  address,
+}: {
+  name: string;
+  phone?: string;
+  address?: string;
+}) {
+  try {
+    const result = await account.updateName(name);
+    if (phone) {
+      await account.updatePrefs({ phone });
+    }
+    if (address) {
+      await account.updatePrefs({ address });
+    }
+    return result;
+  } catch (error) {
+    console.error("Update profile error:", error);
+    return null;
+  }
+}
+
+export async function uploadProfileImage(imageUri: string) {
+  try {
+    const response = await fetch(imageUri);
+    const blob = await response.blob();
+
+    const file = await storage.createFile(config.bucketId!, ID.unique(), blob);
+
+    // Get the file URL
+    const fileUrl = storage.getFileView(config.bucketId!, file.$id);
+
+    // Get current user
+    const currentUser = await account.get();
+
+    // Update the user's profileImage in the database
+    await databases.updateDocument(
+      config.databaseId!,
+      config.usersCollectionId!,
+      currentUser.$id,
+      {
+        profileImage: fileUrl,
+      }
+    );
+
+    return fileUrl;
+  } catch (error) {
+    console.error("Upload profile image error:", error);
     return null;
   }
 }

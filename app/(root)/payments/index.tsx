@@ -42,7 +42,7 @@ const PaymentCard = ({ status = "completed" }) => (
   </TouchableOpacity>
 );
 
-const PaymentMethodCard = ({ type = "card" }) => (
+const PaymentMethodCard = ({ type = "card", onEdit }) => (
   <TouchableOpacity className="bg-white rounded-xl p-4 mb-4 shadow-sm">
     <View className="flex flex-row items-center">
       <Image
@@ -57,7 +57,7 @@ const PaymentMethodCard = ({ type = "card" }) => (
           {type === "card" ? "**** **** **** 1234" : "**** 5678"}
         </Text>
       </View>
-      <TouchableOpacity>
+      <TouchableOpacity onPress={onEdit}>
         <Image source={icons.edit} className="size-5" />
       </TouchableOpacity>
     </View>
@@ -65,6 +65,17 @@ const PaymentMethodCard = ({ type = "card" }) => (
 );
 
 const Payments = () => {
+  const handleAddPaymentMethod = () => {
+    router.push("/(root)/payment-method");
+  };
+
+  const handleEditPaymentMethod = (type: string) => {
+    router.push({
+      pathname: "/(root)/payment-method",
+      params: { type, edit: true },
+    });
+  };
+
   return (
     <SafeAreaView className="h-full bg-gray-50">
       <ScrollView
@@ -83,9 +94,18 @@ const Payments = () => {
         {/* Payment Methods */}
         <View className="mt-8">
           <Text className="text-lg font-rubik-bold mb-4">Payment Methods</Text>
-          <PaymentMethodCard type="card" />
-          <PaymentMethodCard type="bank" />
-          <TouchableOpacity className="bg-white rounded-xl p-4 mb-4 shadow-sm border-2 border-dashed border-gray-300">
+          <PaymentMethodCard
+            type="card"
+            onEdit={() => handleEditPaymentMethod("card")}
+          />
+          <PaymentMethodCard
+            type="bank"
+            onEdit={() => handleEditPaymentMethod("bank")}
+          />
+          <TouchableOpacity
+            onPress={handleAddPaymentMethod}
+            className="bg-white rounded-xl p-4 mb-4 shadow-sm border-2 border-dashed border-gray-300"
+          >
             <View className="flex flex-row items-center justify-center">
               <Image source={icons.edit} className="size-5 mr-2" />
               <Text className="text-primary font-rubik-medium">

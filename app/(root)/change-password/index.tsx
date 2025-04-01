@@ -8,10 +8,12 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
 
 import icons from "@/constants/icons";
+import { updatePassword } from "@/lib/appwrite";
 
 const ChangePassword = () => {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -20,16 +22,61 @@ const ChangePassword = () => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  const handleChangePassword = () => {
+  const validatePassword = (password: string) => {
+    const minLength = 8;
+    const hasNumber = /\d/.test(password);
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+    return (
+      password.length >= minLength &&
+      hasNumber &&
+      hasUpperCase &&
+      hasSpecialChar
+    );
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      Alert.alert("Error", "Please fill in all fields");
+      return;
+    }
+
+    if (!validatePassword(newPassword)) {
+      Alert.alert(
+        "Error",
+        "New password does not meet the requirements. Please check the password requirements below."
+      );
+      return;
+    }
+
     if (newPassword !== confirmPassword) {
       Alert.alert("Error", "New passwords do not match");
       return;
     }
 
-    // TODO: Implement password change API call
-    Alert.alert("Success", "Password changed successfully");
-    router.back();
+    try {
+      setIsUpdating(true);
+      const success = await updatePassword(newPassword);
+
+      if (success) {
+        Alert.alert("Success", "Password changed successfully", [
+          {
+            text: "OK",
+            onPress: () => router.back(),
+          },
+        ]);
+      } else {
+        Alert.alert("Error", "Failed to change password. Please try again.");
+      }
+    } catch (error) {
+      console.error("Password change error:", error);
+      Alert.alert("Error", "An unexpected error occurred. Please try again.");
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   return (
@@ -141,11 +188,20 @@ const ChangePassword = () => {
           {/* Change Password Button */}
           <TouchableOpacity
             onPress={handleChangePassword}
-            className="bg-primary py-4 rounded-xl"
+            disabled={isUpdating}
+            className={`bg-primary-500 py-4 rounded-xl bg-blue-700 ${
+              isUpdating ? "opacity-50" : ""
+            }`}
           >
-            <Text className="text-white text-center text-lg font-rubik-medium">
-              Change Password
-            </Text>
+            <View className="flex flex-row items-center justify-center">
+              {isUpdating ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text className="text-white text-center text-lg font-rubik-medium">
+                  Update Password
+                </Text>
+              )}
+            </View>
           </TouchableOpacity>
         </View>
       </ScrollView>
