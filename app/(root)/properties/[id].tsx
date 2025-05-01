@@ -22,6 +22,7 @@ import { useGlobalContext } from "@/lib/global-provider";
 
 import { useAppwrite } from "@/lib/useAppwrite";
 import { getPropertyById, createBooking, createPurchase } from "@/lib/appwrite";
+import { initiatePayment } from "@/lib/razorpay";
 
 const Property = () => {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -136,27 +137,43 @@ const Property = () => {
 
     try {
       setIsBooking(true);
-      const purchase = await createPurchase({
+
+      // Convert price to paise (smallest unit for INR) - assuming price is in dollars/rupees
+      const amountInPaise = Math.round(property.price * 100);
+
+      const result = await initiatePayment({
         propertyId: property.$id,
-        userId: user.$id,
-        totalPrice: property.price,
-        status: "pending",
+        propertyName: property.name,
+        amount: amountInPaise,
+        description: `Purchase of ${property.name}`,
+        onSuccess: (paymentId) => {
+          Alert.alert(
+            "Payment Successful",
+            `Your payment for ${property.name} was successful! Payment ID: ${paymentId}`,
+            [
+              {
+                text: "View Purchases",
+                onPress: () => {
+                  router.push("/(root)/my-bookings");
+                },
+              },
+              {
+                text: "OK",
+              },
+            ]
+          );
+        },
+        onFailure: (error) => {
+          console.error("Payment error:", error);
+          Alert.alert(
+            "Payment Failed",
+            "Your payment could not be processed. Please try again."
+          );
+        },
       });
 
-      if (purchase) {
-        Alert.alert("Success", "Your purchase request has been submitted!", [
-          {
-            text: "View Purchases",
-            onPress: () => {
-              router.push("/(root)/my-bookings");
-            },
-          },
-          {
-            text: "OK",
-          },
-        ]);
-      } else {
-        throw new Error("Failed to create purchase");
+      if (!result || !result.success) {
+        throw new Error("Payment was not completed");
       }
     } catch (error) {
       console.error("Purchase error:", error);
@@ -180,8 +197,12 @@ const Property = () => {
             },
           ]
         );
-      } else {
-        Alert.alert("Error", "Failed to create purchase. Please try again.");
+      } else if (
+        error instanceof Error &&
+        !error.message.includes("PAYMENT_CANCELLED")
+      ) {
+        // Don't show error for cancelled payments as Razorpay already shows an alert
+        Alert.alert("Error", "Failed to process payment. Please try again.");
       }
     } finally {
       setIsBooking(false);
@@ -245,31 +266,66 @@ const Property = () => {
 
     try {
       setIsBooking(true);
-      const booking = await createBooking({
+      setShowBookingModal(false); // Close modal before initiating payment
+
+      // Convert price to paise (smallest unit for INR)
+      const amountInPaise = Math.round(property.price * 100);
+
+      const result = await initiatePayment({
         propertyId: property.$id,
-        userId: user.$id,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        totalPrice: property.price,
-        status: "pending",
+        propertyName: property.name,
+        amount: amountInPaise,
+        description: `Booking of ${property.name} from ${formatDate(
+          startDate
+        )} to ${formatDate(endDate)}`,
+        onSuccess: async (paymentId) => {
+          // Create booking record after successful payment
+          try {
+            const booking = await createBooking({
+              propertyId: property.$id,
+              userId: user.$id,
+              startDate: startDate.toISOString(),
+              endDate: endDate.toISOString(),
+              totalPrice: property.price,
+              status: "confirmed", // Status confirmed since payment is already made
+            });
+
+            if (booking) {
+              Alert.alert(
+                "Booking Confirmed",
+                `Your booking for ${property.name} was successful!`,
+                [
+                  {
+                    text: "View Bookings",
+                    onPress: () => {
+                      router.push("/(root)/my-bookings");
+                    },
+                  },
+                  {
+                    text: "OK",
+                  },
+                ]
+              );
+            }
+          } catch (error) {
+            console.error("Create booking record error:", error);
+            Alert.alert(
+              "Warning",
+              "Payment was successful, but we had trouble creating your booking record. Please contact support."
+            );
+          }
+        },
+        onFailure: (error) => {
+          console.error("Payment error:", error);
+          Alert.alert(
+            "Payment Failed",
+            "Your payment could not be processed. Please try again."
+          );
+        },
       });
 
-      if (booking) {
-        Alert.alert("Success", "Your booking has been confirmed!", [
-          {
-            text: "View Bookings",
-            onPress: () => {
-              setShowBookingModal(false);
-              router.push("/(root)/my-bookings");
-            },
-          },
-          {
-            text: "OK",
-            onPress: () => setShowBookingModal(false),
-          },
-        ]);
-      } else {
-        throw new Error("Failed to create booking");
+      if (!result || !result.success) {
+        throw new Error("Payment was not completed");
       }
     } catch (error) {
       console.error("Booking error:", error);
@@ -284,7 +340,6 @@ const Property = () => {
             {
               text: "Sign In",
               onPress: () => {
-                setShowBookingModal(false);
                 router.push("/sign-in");
               },
             },
@@ -294,8 +349,12 @@ const Property = () => {
             },
           ]
         );
-      } else {
-        Alert.alert("Error", "Failed to create booking. Please try again.");
+      } else if (
+        error instanceof Error &&
+        !error.message.includes("PAYMENT_CANCELLED")
+      ) {
+        // Don't show error for cancelled payments as Razorpay already shows an alert
+        Alert.alert("Error", "Failed to process payment. Please try again.");
       }
     } finally {
       setIsBooking(false);

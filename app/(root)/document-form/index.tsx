@@ -11,15 +11,14 @@ import {
   ScrollView,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import * as ImagePicker from "expo-image-picker";
 
 import icons from "@/constants/icons";
+import { uploadDocument, updateDocument } from "@/lib/appwrite";
 
 const DocumentForm = () => {
-  const { type, edit } = useLocalSearchParams();
+  const { type, edit, documentId } = useLocalSearchParams();
   const [documentName, setDocumentName] = useState("");
   const [documentNumber, setDocumentNumber] = useState("");
-  const [image, setImage] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -30,35 +29,28 @@ const DocumentForm = () => {
     }
   }, [edit, type]);
 
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      setImage(result.assets[0].uri);
-    }
-  };
-
   const handleSave = async () => {
     if (!documentName.trim() || !documentNumber.trim()) {
       Alert.alert("Error", "Please fill in all fields");
       return;
     }
 
-    if (!image) {
-      Alert.alert("Error", "Please upload a document image");
-      return;
-    }
-
     setIsSaving(true);
 
     try {
-      // In a real app, upload the image and save document details to backend
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      if (edit && documentId) {
+        await updateDocument({
+          documentId: documentId as string,
+          documentName,
+          documentNumber,
+        });
+      } else {
+        await uploadDocument({
+          documentName,
+          documentNumber,
+        });
+      }
+
       Alert.alert("Success", "Document saved successfully", [
         {
           text: "OK",
@@ -66,7 +58,11 @@ const DocumentForm = () => {
         },
       ]);
     } catch (error) {
-      Alert.alert("Error", "Failed to save document");
+      console.error("Save document error:", error);
+      Alert.alert(
+        "Error",
+        "Failed to save document. Please check your internet connection and try again."
+      );
     } finally {
       setIsSaving(false);
     }
@@ -112,30 +108,6 @@ const DocumentForm = () => {
               placeholder="Enter document number"
               className="bg-white rounded-xl p-4 text-base font-rubik-medium"
             />
-          </View>
-
-          {/* Document Image */}
-          <View className="mt-6">
-            <Text className="text-lg font-rubik-bold mb-4">Document Image</Text>
-            <TouchableOpacity
-              onPress={pickImage}
-              className="bg-white rounded-xl p-4 border-2 border-dashed border-gray-300"
-            >
-              {image ? (
-                <Image
-                  source={{ uri: image }}
-                  className="w-full h-48 rounded-lg"
-                  resizeMode="cover"
-                />
-              ) : (
-                <View className="items-center justify-center h-48">
-                  <Image source={icons.upload} className="size-12 mb-2" />
-                  <Text className="text-gray-500 font-rubik-medium">
-                    Tap to upload document image
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
           </View>
 
           {/* Save Button */}

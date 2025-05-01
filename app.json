@@ -13,7 +13,8 @@
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Allow Restate to access your photos to update your profile picture.",
         "NSCameraUsageDescription": "Allow Restate to access your camera to take profile pictures."
-      }
+      },
+      "bundleIdentifier": "com.jsm.restate"
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +25,8 @@
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
-      ]
+      ],
+      "package": "com.jsm.restate"
     },
     "web": {
       "bundler": "metro",
@@ -65,6 +67,9 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "razorpayKeyId": "rzp_live_5sjhpXJ1IcN65m"
     }
   }
 }

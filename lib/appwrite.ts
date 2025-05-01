@@ -25,6 +25,8 @@ export const config = {
   bookingsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_BOOKINGS_COLLECTION_ID,
   bucketId: process.env.EXPO_PUBLIC_APPWRITE_BUCKET_ID,
   usersCollectionId: process.env.EXPO_PUBLIC_APPWRITE_USERS_COLLECTION_ID,
+  documentsCollectionId:
+    process.env.EXPO_PUBLIC_APPWRITE_DOCUMENTS_COLLECTION_ID,
 };
 
 export const client = new Client();
@@ -340,30 +342,75 @@ export async function updateProfile({
 
 export async function uploadProfileImage(imageUri: string) {
   try {
-    const response = await fetch(imageUri);
-    const blob = await response.blob();
-
-    const file = await storage.createFile(config.bucketId!, ID.unique(), blob);
-
-    // Get the file URL
-    const fileUrl = storage.getFileView(config.bucketId!, file.$id);
-
     // Get current user
     const currentUser = await account.get();
 
-    // Update the user's profileImage in the database
-    await databases.updateDocument(
-      config.databaseId!,
-      config.usersCollectionId!,
-      currentUser.$id,
-      {
-        profileImage: fileUrl,
-      }
-    );
+    // Update the user's profileImage in preferences
+    await account.updatePrefs({
+      profileImage: imageUri,
+    });
 
-    return fileUrl;
+    return imageUri;
   } catch (error) {
     console.error("Upload profile image error:", error);
     return null;
+  }
+}
+
+export async function uploadDocument({
+  documentName,
+  documentNumber,
+}: {
+  documentName: string;
+  documentNumber: string;
+}) {
+  try {
+    // Create document record in the database
+    const document = await databases.createDocument(
+      config.databaseId!,
+      config.documentsCollectionId!,
+      ID.unique(),
+      {
+        name: documentName,
+        number: documentNumber,
+        userId: (await getCurrentUser())?.$id,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+      }
+    );
+
+    return document;
+  } catch (error) {
+    console.error("Upload document error:", error);
+    throw error;
+  }
+}
+
+export async function updateDocument({
+  documentId,
+  documentName,
+  documentNumber,
+}: {
+  documentId: string;
+  documentName: string;
+  documentNumber: string;
+}) {
+  try {
+    // Update document record in the database
+    const document = await databases.updateDocument(
+      config.databaseId!,
+      config.documentsCollectionId!,
+      documentId,
+      {
+        name: documentName,
+        number: documentNumber,
+        updatedAt: new Date().toISOString(),
+      }
+    );
+
+    return document;
+  } catch (error) {
+    console.error("Update document error:", error);
+    throw error;
   }
 }
